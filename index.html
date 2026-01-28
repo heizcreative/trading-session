@@ -1,284 +1,295 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Trading Sessions</title>
-  <style>
-    :root{
-      /* Match your journal (clean, dark, no gradient) */
-      --bg: transparent;                 /* blends into Notion */
-      --panel: rgba(18,18,20,.92);
-      --card: rgba(24,24,28,.92);
-      --stroke: rgba(255,255,255,.08);
-      --text: rgba(255,255,255,.90);
-      --muted: rgba(255,255,255,.60);
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Trading Sessions</title>
 
-      --ok: #28E6A5;
-      --bad:#FF4D6D;
+<style>
+  :root{
+    --text: rgba(255,255,255,.92);
+    --muted: rgba(255,255,255,.60);
+    --stroke: rgba(255,255,255,.10);
 
-      --radius: 18px;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-    }
+    --ok: #28E6A5;
+    --bad:#FF4D6D;
 
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--sans);
-      padding: 14px;
-    }
+    /* Card background: set to transparent if you want 100% see-through */
+    --card: rgba(0,0,0,.28);
 
-    .panel{
-      width: min(980px, 100%);
-      margin: 0 auto;
-      background: var(--panel);
-      border: 1px solid var(--stroke);
-      border-radius: var(--radius);
-      overflow:hidden;
-    }
+    --radius: 16px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  }
 
-    .header{
-      padding: 14px 14px 10px 14px;
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-      border-bottom: 1px solid rgba(255,255,255,.06);
-    }
+  *{ box-sizing:border-box; }
 
-    .title h1{
-      margin:0;
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing:.2px;
-    }
-    .title p{
-      margin:4px 0 0 0;
-      font-size: 12px;
-      color: var(--muted);
-    }
+  /* Force true transparency for Notion iframe */
+  html, body{
+    margin:0;
+    padding:0;
+    background: transparent !important;
+  }
 
-    .chip{
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--muted);
-      padding: 8px 10px;
-      border-radius: 12px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.25);
-      white-space:nowrap;
-    }
+  body{
+    color: var(--text);
+    font-family: var(--sans);
+    padding: 12px;
+  }
 
-    .grid{
-      padding: 12px 14px 14px 14px;
-      display:grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-    }
-    @media (max-width: 760px){
-      .grid{ grid-template-columns: 1fr; }
-    }
+  .wrap{
+    width: min(980px, 100%);
+    margin: 0 auto;
+  }
 
-    .card{
-      background: var(--card);
-      border: 1px solid var(--stroke);
-      border-radius: 16px;
-      padding: 12px;
-    }
+  .panel{
+    background: transparent !important;
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius);
+    overflow:hidden;
+  }
 
-    .top{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-    }
+  .header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    padding: 12px;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    background: transparent;
+  }
 
-    .left{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-width:0;
-    }
+  .title h1{
+    margin:0;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing:.2px;
+  }
+  .title p{
+    margin:4px 0 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
 
-    .dot{
-      width: 10px; height:10px; border-radius: 50%;
-      background: var(--bad);
-      box-shadow: 0 0 0 4px rgba(255,77,109,.14);
-      flex:0 0 auto;
-    }
+  .chip{
+    font-family: var(--mono);
+    font-size: 12px;
+    color: rgba(255,255,255,.82);
+    padding: 7px 10px;
+    border-radius: 999px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.22);
+    white-space:nowrap;
+  }
 
-    .names{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-      min-width:0;
-    }
-    .names b{
-      font-size: 13px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .names span{
-      font-size: 11px;
-      color: var(--muted);
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px;
+  }
+  @media (max-width: 760px){
+    .grid{ grid-template-columns: 1fr; }
+  }
 
-    .status{
-      font-family: var(--mono);
-      font-size: 11px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.22);
-      white-space:nowrap;
-    }
+  .card{
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 14px;
+    padding: 12px;
+    background: var(--card);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
 
-    .bigtime{
-      margin-top: 12px;
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-end;
-      gap: 12px;
-    }
+  .top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+  }
 
-    .clock{
-      font-family: var(--mono);
-      font-size: 26px; /* bigger for clarity */
-      letter-spacing:.4px;
-      line-height: 1;
-    }
+  .left{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+  }
 
-    .rightinfo{
-      text-align:right;
-      font-size: 11px;
-      color: var(--muted);
-      line-height: 1.35;
-      min-width: 140px;
-    }
-    .rightinfo .cd{
-      font-family: var(--mono);
-      color: rgba(255,255,255,.86);
-      font-size: 12px;
-      margin-top: 3px;
-    }
+  .dot{
+    width:10px; height:10px;
+    border-radius:50%;
+    background: var(--bad);
+    box-shadow: 0 0 0 4px rgba(255,77,109,.14);
+    flex:0 0 auto;
+  }
 
-    .windows{
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255,255,255,.06);
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .line{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .line code{
-      font-family: var(--mono);
-      font-size: 11px;
-      color: rgba(255,255,255,.78);
-      background: rgba(0,0,0,.20);
-      border: 1px solid rgba(255,255,255,.08);
-      padding: 2px 8px;
-      border-radius: 999px;
-      white-space:nowrap;
-    }
+  .names{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    min-width:0;
+  }
+  .names b{
+    font-size:13px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .names span{
+    font-size:11px;
+    color: var(--muted);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
 
-    .open .dot{
-      background: var(--ok);
-      box-shadow: 0 0 0 4px rgba(40,230,165,.14);
-    }
-    .open .status{
-      color: rgba(40,230,165,.95);
-      border-color: rgba(40,230,165,.22);
-      background: rgba(40,230,165,.10);
-    }
-    .closed .status{
-      color: rgba(255,77,109,.95);
-      border-color: rgba(255,77,109,.22);
-      background: rgba(255,77,109,.08);
-    }
+  .status{
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.22);
+    white-space:nowrap;
+  }
 
-    .footer{
-      padding: 10px 14px 12px 14px;
-      border-top: 1px solid rgba(255,255,255,.06);
-      color: var(--muted);
-      font-size: 11px;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      background: rgba(0,0,0,.10);
-    }
-    .pill{
-      font-family: var(--mono);
-      padding: 2px 8px;
-      border-radius: 999px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.18);
-      color: rgba(255,255,255,.70);
-      display:inline-block;
-    }
-  </style>
+  .mid{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .clock{
+    font-family: var(--mono);
+    font-size: 26px;
+    letter-spacing:.4px;
+    line-height:1;
+  }
+
+  .cd{
+    text-align:right;
+    color: var(--muted);
+    font-size: 11px;
+    line-height:1.35;
+  }
+  .cd .big{
+    margin-top: 2px;
+    font-family: var(--mono);
+    color: rgba(255,255,255,.88);
+    font-size: 12px;
+  }
+
+  .windows{
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,.07);
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .line{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .pill{
+    font-family: var(--mono);
+    font-size: 11px;
+    color: rgba(255,255,255,.82);
+    background: rgba(0,0,0,.22);
+    border: 1px solid rgba(255,255,255,.10);
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space:nowrap;
+  }
+
+  .open .dot{
+    background: var(--ok);
+    box-shadow: 0 0 0 4px rgba(40,230,165,.14);
+  }
+  .open .status{
+    color: rgba(40,230,165,.95);
+    border-color: rgba(40,230,165,.22);
+    background: rgba(40,230,165,.10);
+  }
+  .closed .status{
+    color: rgba(255,77,109,.95);
+    border-color: rgba(255,77,109,.22);
+    background: rgba(255,77,109,.08);
+  }
+
+  .footer{
+    padding: 10px 12px 12px 12px;
+    border-top: 1px solid rgba(255,255,255,.07);
+    color: var(--muted);
+    font-size: 11px;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    background: transparent;
+  }
+</style>
 </head>
 
 <body>
+<div class="wrap">
   <div class="panel">
     <div class="header">
       <div class="title">
-        <h1>Live Trading Sessions</h1>
-        <p>Clear windows in <b>your time (ET)</b> + each city’s local time</p>
+        <h1>Trading Sessions</h1>
+        <p>Live status + countdown (shown in your time: ET)</p>
       </div>
-      <div class="chip" id="nowChip">ET --:--:--</div>
+      <div class="chip" id="etNow">ET --:--:--</div>
     </div>
 
     <div class="grid" id="grid"></div>
 
     <div class="footer">
-      <div>Tip: focus on the <span class="pill">Your time</span> line.</div>
+      <div>Read: <span class="pill">Your time (ET)</span></div>
       <div id="nextGlobal">Next: <span class="pill">--</span></div>
     </div>
   </div>
+</div>
 
 <script>
-  // Your timezone (Mississauga = Toronto time)
-  const USER_TZ = "America/Toronto";
+  const USER_TZ = "America/Toronto"; // your time (Mississauga)
 
-  // Session windows are defined in each session's LOCAL time.
-  // Adjust these if you want different hours.
+  // Define sessions in each session's LOCAL time
   const SESSIONS = [
-    { key:"asia",   name:"Asia",   city:"Tokyo",    tz:"Asia/Tokyo",       start:"07:00", end:"16:00" },
-    { key:"london", name:"London", city:"London",   tz:"Europe/London",    start:"08:00", end:"17:00" },
-    { key:"ny",     name:"New York", city:"New York", tz:"America/New_York", start:"08:00", end:"17:00" }
+    { key:"asia",   name:"Asia",     city:"Tokyo",    tz:"Asia/Tokyo",        start:"07:00", end:"16:00" },
+    { key:"london", name:"London",   city:"London",   tz:"Europe/London",     start:"08:00", end:"17:00" },
+    { key:"ny",     name:"New York", city:"New York", tz:"America/New_York",  start:"08:00", end:"17:00" }
   ];
 
   const grid = document.getElementById("grid");
-
   const pad = n => String(n).padStart(2,"0");
   const parseHM = hm => { const [h,m]=hm.split(":").map(Number); return h*60+m; };
 
-  function timePartsInTZ(tz, date=new Date()){
-    const fmt = new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz, hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit"
-    }).format(date);
-    const [HH,MM,SS]=fmt.split(":").map(Number);
-    return { HH,MM,SS, mins: HH*60 + MM + SS/60, str:`${pad(HH)}:${pad(MM)}:${pad(SS)}` };
+  function hhmmssInTZ(tz, d=new Date()){
+    const t = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour12:false,
+      hour:"2-digit", minute:"2-digit", second:"2-digit"
+    }).format(d);
+    return t; // "HH:MM:SS"
   }
 
-  function formatHMInTZ(tz, date){
+  function hhmmInTZ(tz, d=new Date()){
     return new Intl.DateTimeFormat("en-GB", {
       timeZone: tz, hour12:false, hour:"2-digit", minute:"2-digit"
-    }).format(date);
+    }).format(d);
+  }
+
+  function minsSinceMidnightInTZ(tz, d=new Date()){
+    const t = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour12:false, hour:"2-digit", minute:"2-digit"
+    }).format(d);
+    const [HH,MM]=t.split(":").map(Number);
+    return HH*60 + MM;
   }
 
   function formatDuration(ms){
@@ -289,156 +300,112 @@
     return h>0 ? `${h}h ${pad(m)}m ${pad(s)}s` : `${m}m ${pad(s)}s`;
   }
 
-  // Find next "opens/closes" by scanning forward minute-by-minute (DST-safe)
-  function nextEventForSession(session){
+  function isOpen(session){
+    const nowM = minsSinceMidnightInTZ(session.tz);
     const startM = parseHM(session.start);
-    const endM   = parseHM(session.end);
+    const endM = parseHM(session.end);
+
+    if(endM > startM) return (nowM >= startM && nowM < endM);
+    return (nowM >= startM || nowM < endM); // if crosses midnight
+  }
+
+  // Find next open/close as real timestamps (DST safe)
+  function nextEvent(session){
+    const startM = parseHM(session.start);
+    const endM = parseHM(session.end);
     const now = new Date();
+
+    let nextOpen = null;
+    let nextClose = null;
 
     for(let i=0; i<=48*60; i++){
       const probe = new Date(now.getTime() + i*60*1000);
-      const t = new Intl.DateTimeFormat("en-GB", {
-        timeZone: session.tz, hour12:false, hour:"2-digit", minute:"2-digit"
-      }).format(probe);
-      const [HH,MM] = t.split(":").map(Number);
-      const mins = HH*60 + MM;
-
-      if(mins === startM) return { when: probe.getTime(), type:"opens" };
-      if(mins === endM)   return { when: probe.getTime(), type:"closes" };
+      const m = minsSinceMidnightInTZ(session.tz, probe);
+      if(!nextOpen && m === startM) nextOpen = probe.getTime();
+      if(!nextClose && m === endM) nextClose = probe.getTime();
+      if(nextOpen && nextClose) break;
     }
-    return null;
-  }
 
-  function isOpen(session){
-    const { mins } = timePartsInTZ(session.tz);
-    const startM = parseHM(session.start);
-    const endM   = parseHM(session.end);
-
-    if(endM > startM) return mins >= startM && mins < endM;
-    return (mins >= startM || mins < endM); // crosses midnight support
+    const openNow = isOpen(session);
+    const when = openNow ? nextClose : nextOpen;
+    return { openNow, when, type: openNow ? "closes" : "opens", nextOpen, nextClose };
   }
 
   function build(){
     grid.innerHTML = "";
     for(const s of SESSIONS){
-      const card = document.createElement("div");
-      card.className = "card closed";
-      card.id = `card-${s.key}`;
-      card.innerHTML = `
+      const el = document.createElement("div");
+      el.className = "card closed";
+      el.id = `card-${s.key}`;
+      el.innerHTML = `
         <div class="top">
           <div class="left">
             <div class="dot"></div>
             <div class="names">
               <b>${s.name} Session</b>
-              <span>${s.city} (${s.start}–${s.end} local)</span>
+              <span>${s.city} · ${s.start}–${s.end} (local)</span>
             </div>
           </div>
           <div class="status" id="status-${s.key}">CLOSED</div>
         </div>
 
-        <div class="bigtime">
-          <div class="clock" id="time-${s.key}">--:--:--</div>
-          <div class="rightinfo">
-            <div id="nextLabel-${s.key}">Next: --</div>
-            <div class="cd" id="cd-${s.key}">--</div>
+        <div class="mid">
+          <div class="clock" id="clock-${s.key}">--:--:--</div>
+          <div class="cd">
+            <div id="label-${s.key}">Next: --</div>
+            <div class="big" id="cd-${s.key}">--</div>
           </div>
         </div>
 
         <div class="windows">
           <div class="line">
             <div>Your time (ET)</div>
-            <code id="your-${s.key}">--</code>
+            <span class="pill" id="your-${s.key}">--</span>
           </div>
           <div class="line">
             <div>${s.city} local</div>
-            <code id="local-${s.key}">--</code>
+            <span class="pill" id="local-${s.key}">${s.start}–${s.end}</span>
           </div>
         </div>
       `;
-      grid.appendChild(card);
+      grid.appendChild(el);
     }
   }
 
   function tick(){
-    // show your local time (ET)
-    document.getElementById("nowChip").textContent = `ET ${timePartsInTZ(USER_TZ).str}`;
+    // Live ET clock in header
+    document.getElementById("etNow").textContent = `ET ${hhmmssInTZ(USER_TZ)}`;
 
-    let globalNext = null;
+    let global = null;
 
     for(const s of SESSIONS){
-      // Big clock shows your local time OR session time?
-      // Here: show YOUR time for fast understanding.
-      document.getElementById(`time-${s.key}`).textContent = timePartsInTZ(USER_TZ).str;
+      // Live ET clock inside each card (keeps it simple & clear)
+      document.getElementById(`clock-${s.key}`).textContent = hhmmssInTZ(USER_TZ);
 
-      // status
-      const open = isOpen(s);
+      const ev = nextEvent(s);
       const card = document.getElementById(`card-${s.key}`);
-      card.classList.toggle("open", open);
-      card.classList.toggle("closed", !open);
-      document.getElementById(`status-${s.key}`).textContent = open ? "OPEN" : "CLOSED";
+      card.classList.toggle("open", ev.openNow);
+      card.classList.toggle("closed", !ev.openNow);
 
-      // next event & countdown
-      const next = nextEventForSession(s);
-      if(next){
-        const msLeft = next.when - Date.now();
-        document.getElementById(`nextLabel-${s.key}`).textContent = `Next: ${next.type.toUpperCase()}`;
-        document.getElementById(`cd-${s.key}`).textContent = formatDuration(msLeft);
+      document.getElementById(`status-${s.key}`).textContent = ev.openNow ? "OPEN" : "CLOSED";
+      document.getElementById(`label-${s.key}`).textContent = `Next: ${ev.type.toUpperCase()}`;
+      document.getElementById(`cd-${s.key}`).textContent = formatDuration(ev.when - Date.now());
 
-        // show session window converted to your time using the next start/end we find
-        const nextStart = (next.type === "opens") ? new Date(next.when) : new Date(next.when - 60*60*1000); // fallback
-        // Better: compute next open and next close independently
-        const nextOpen  = (() => {
-          const x = nextEventForSession({ ...s, start:s.start, end:s.start }); // hack won't work
-          return null;
-        })();
-
-        if(!globalNext || next.when < globalNext.when){
-          globalNext = { ...next, session: `${s.name} Session` };
-        }
+      // Show the session window in YOUR time (ET) using the next open & close timestamps
+      if(ev.nextOpen && ev.nextClose){
+        const yourStart = hhmmInTZ(USER_TZ, new Date(ev.nextOpen));
+        const yourEnd   = hhmmInTZ(USER_TZ, new Date(ev.nextClose));
+        document.getElementById(`your-${s.key}`).textContent = `${yourStart}–${yourEnd}`;
       }
 
-      // Display window ranges:
-      // Local window is known: start/end in city local
-      document.getElementById(`local-${s.key}`).textContent = `${s.start}–${s.end}`;
-
-      // Convert the window to your timezone by finding the next occurrence of start and end and formatting in USER_TZ.
-      // We'll find the next start and next end times as actual instants:
-      const nextStart = (function(){
-        const startM = parseHM(s.start);
-        const now = new Date();
-        for(let i=0; i<=48*60; i++){
-          const probe = new Date(now.getTime() + i*60*1000);
-          const t = new Intl.DateTimeFormat("en-GB", { timeZone:s.tz, hour12:false, hour:"2-digit", minute:"2-digit" }).format(probe);
-          const [HH,MM]=t.split(":").map(Number);
-          if(HH*60+MM === startM) return probe;
-        }
-        return null;
-      })();
-
-      const nextEnd = (function(){
-        const endM = parseHM(s.end);
-        const now = new Date();
-        for(let i=0; i<=48*60; i++){
-          const probe = new Date(now.getTime() + i*60*1000);
-          const t = new Intl.DateTimeFormat("en-GB", { timeZone:s.tz, hour12:false, hour:"2-digit", minute:"2-digit" }).format(probe);
-          const [HH,MM]=t.split(":").map(Number);
-          if(HH*60+MM === endM) return probe;
-        }
-        return null;
-      })();
-
-      if(nextStart && nextEnd){
-        const yourStart = formatHMInTZ(USER_TZ, nextStart);
-        const yourEnd   = formatHMInTZ(USER_TZ, nextEnd);
-        document.getElementById(`your-${s.key}`).textContent = `${yourStart}–${yourEnd}`;
-      }else{
-        document.getElementById(`your-${s.key}`).textContent = `--`;
+      if(!global || ev.when < global.when){
+        global = { when: ev.when, text: `${s.name} ${ev.type}` };
       }
     }
 
-    if(globalNext){
+    if(global){
       document.getElementById("nextGlobal").innerHTML =
-        `Next: <span class="pill">${globalNext.session} ${globalNext.type}</span> <span class="pill">${formatDuration(globalNext.when - Date.now())}</span>`;
+        `Next: <span class="pill">${global.text}</span> <span class="pill">${formatDuration(global.when - Date.now())}</span>`;
     }
   }
 

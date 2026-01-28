@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Trading Sessions</title>
+<title>Killzone Session Monitor</title>
 
 <style>
   :root{
@@ -11,11 +11,11 @@
     --muted: rgba(255,255,255,.60);
     --stroke: rgba(255,255,255,.10);
 
-    --ok: #28E6A5;
-    --bad:#FF4D6D;
+    --open: #28E6A5;
+    --closed:#FF4D6D;
 
-    /* Card background: set to transparent if you want 100% see-through */
-    --card: rgba(0,0,0,.28);
+    /* Change this if you want more/less “glass” */
+    --card: rgba(0,0,0,.24);
 
     --radius: 16px;
     --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -24,7 +24,7 @@
 
   *{ box-sizing:border-box; }
 
-  /* Force true transparency for Notion iframe */
+  /* Force TRUE transparency inside Notion iframe */
   html, body{
     margin:0;
     padding:0;
@@ -88,6 +88,7 @@
     gap: 10px;
     padding: 12px;
   }
+
   @media (max-width: 760px){
     .grid{ grid-template-columns: 1fr; }
   }
@@ -118,7 +119,7 @@
   .dot{
     width:10px; height:10px;
     border-radius:50%;
-    background: var(--bad);
+    background: var(--closed);
     box-shadow: 0 0 0 4px rgba(255,77,109,.14);
     flex:0 0 auto;
   }
@@ -181,35 +182,8 @@
     font-size: 12px;
   }
 
-  .windows{
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255,255,255,.07);
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-    font-size: 11px;
-    color: var(--muted);
-  }
-
-  .line{
-    display:flex;
-    justify-content:space-between;
-    gap:10px;
-  }
-  .pill{
-    font-family: var(--mono);
-    font-size: 11px;
-    color: rgba(255,255,255,.82);
-    background: rgba(0,0,0,.22);
-    border: 1px solid rgba(255,255,255,.10);
-    padding: 2px 8px;
-    border-radius: 999px;
-    white-space:nowrap;
-  }
-
   .open .dot{
-    background: var(--ok);
+    background: var(--open);
     box-shadow: 0 0 0 4px rgba(40,230,165,.14);
   }
   .open .status{
@@ -233,6 +207,17 @@
     gap:10px;
     background: transparent;
   }
+
+  .pill{
+    font-family: var(--mono);
+    padding: 2px 8px;
+    border-radius: 999px;
+    border:1px solid rgba(255,255,255,.10);
+    background: rgba(0,0,0,.18);
+    color: rgba(255,255,255,.70);
+    display:inline-block;
+    white-space:nowrap;
+  }
 </style>
 </head>
 
@@ -241,8 +226,8 @@
   <div class="panel">
     <div class="header">
       <div class="title">
-        <h1>Trading Sessions</h1>
-        <p>Live status + countdown (shown in your time: ET)</p>
+        <h1>Killzone Monitor</h1>
+        <p>Asia Range · London Killzone · NY Killzone (ET)</p>
       </div>
       <div class="chip" id="etNow">ET --:--:--</div>
     </div>
@@ -250,32 +235,41 @@
     <div class="grid" id="grid"></div>
 
     <div class="footer">
-      <div>Read: <span class="pill">Your time (ET)</span></div>
+      <div>Status is based on <span class="pill">your time (ET)</span></div>
       <div id="nextGlobal">Next: <span class="pill">--</span></div>
     </div>
   </div>
 </div>
 
 <script>
-  const USER_TZ = "America/Toronto"; // your time (Mississauga)
+  // Your timezone (Mississauga)
+  const USER_TZ = "America/Toronto";
 
-  // Define sessions in each session's LOCAL time
-  const SESSIONS = [
-    { key:"asia",   name:"Asia",     city:"Tokyo",    tz:"Asia/Tokyo",        start:"07:00", end:"16:00" },
-    { key:"london", name:"London",   city:"London",   tz:"Europe/London",     start:"08:00", end:"17:00" },
-    { key:"ny",     name:"New York", city:"New York", tz:"America/New_York",  start:"08:00", end:"17:00" }
+  // Killzones you requested (ET):
+  // Asia Range: 8:00 PM – 12:00 AM
+  // London Killzone: 2:00 AM – 5:00 AM
+  // NY Killzone: 9:30 AM – 11:00 AM
+  //
+  // Note: "end" can cross midnight (Asia ends at 00:00)
+  const WINDOWS = [
+    { key:"asia",   name:"Asia Range",       start:"20:00", end:"00:00" },
+    { key:"london", name:"London Killzone",  start:"02:00", end:"05:00" },
+    { key:"ny",     name:"NY Killzone",      start:"09:30", end:"11:00" }
   ];
 
   const grid = document.getElementById("grid");
   const pad = n => String(n).padStart(2,"0");
-  const parseHM = hm => { const [h,m]=hm.split(":").map(Number); return h*60+m; };
+
+  function parseHM(hm){
+    const [h,m] = hm.split(":").map(Number);
+    return h*60 + m;
+  }
 
   function hhmmssInTZ(tz, d=new Date()){
-    const t = new Intl.DateTimeFormat("en-GB", {
+    return new Intl.DateTimeFormat("en-GB", {
       timeZone: tz, hour12:false,
       hour:"2-digit", minute:"2-digit", second:"2-digit"
     }).format(d);
-    return t; // "HH:MM:SS"
   }
 
   function hhmmInTZ(tz, d=new Date()){
@@ -284,11 +278,9 @@
     }).format(d);
   }
 
-  function minsSinceMidnightInTZ(tz, d=new Date()){
-    const t = new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz, hour12:false, hour:"2-digit", minute:"2-digit"
-    }).format(d);
-    const [HH,MM]=t.split(":").map(Number);
+  function minsInTZ(tz, d=new Date()){
+    const t = hhmmInTZ(tz, d);
+    const [HH,MM] = t.split(":").map(Number);
     return HH*60 + MM;
   }
 
@@ -300,71 +292,68 @@
     return h>0 ? `${h}h ${pad(m)}m ${pad(s)}s` : `${m}m ${pad(s)}s`;
   }
 
-  function isOpen(session){
-    const nowM = minsSinceMidnightInTZ(session.tz);
-    const startM = parseHM(session.start);
-    const endM = parseHM(session.end);
+  function isOpen(win){
+    const nowM = minsInTZ(USER_TZ);
+    const startM = parseHM(win.start);
+    const endM = parseHM(win.end);
 
+    // If end > start: same day window
     if(endM > startM) return (nowM >= startM && nowM < endM);
-    return (nowM >= startM || nowM < endM); // if crosses midnight
+
+    // Crosses midnight (e.g., 20:00 -> 00:00)
+    // Open if now >= start OR now < end
+    return (nowM >= startM || nowM < endM);
   }
 
-  // Find next open/close as real timestamps (DST safe)
-  function nextEvent(session){
-    const startM = parseHM(session.start);
-    const endM = parseHM(session.end);
+  // Find next occurrence of a minute-of-day in USER_TZ as a real timestamp (DST-safe).
+  function nextOccurrence(minuteOfDay){
     const now = new Date();
-
-    let nextOpen = null;
-    let nextClose = null;
-
     for(let i=0; i<=48*60; i++){
       const probe = new Date(now.getTime() + i*60*1000);
-      const m = minsSinceMidnightInTZ(session.tz, probe);
-      if(!nextOpen && m === startM) nextOpen = probe.getTime();
-      if(!nextClose && m === endM) nextClose = probe.getTime();
-      if(nextOpen && nextClose) break;
+      if(minsInTZ(USER_TZ, probe) === minuteOfDay) return probe.getTime();
     }
+    return null;
+  }
 
-    const openNow = isOpen(session);
+  function nextEvent(win){
+    const startM = parseHM(win.start);
+    const endM   = parseHM(win.end);
+
+    const nextOpen  = nextOccurrence(startM);
+    const nextClose = nextOccurrence(endM);
+
+    const openNow = isOpen(win);
+
+    // If currently open, next event is close; otherwise open
     const when = openNow ? nextClose : nextOpen;
-    return { openNow, when, type: openNow ? "closes" : "opens", nextOpen, nextClose };
+    const type = openNow ? "closes" : "opens";
+
+    return { openNow, when, type, nextOpen, nextClose };
   }
 
   function build(){
     grid.innerHTML = "";
-    for(const s of SESSIONS){
+    for(const w of WINDOWS){
       const el = document.createElement("div");
       el.className = "card closed";
-      el.id = `card-${s.key}`;
+      el.id = `card-${w.key}`;
       el.innerHTML = `
         <div class="top">
           <div class="left">
             <div class="dot"></div>
             <div class="names">
-              <b>${s.name} Session</b>
-              <span>${s.city} · ${s.start}–${s.end} (local)</span>
+              <b>${w.name}</b>
+              <span>${w.start}–${w.end} (ET)</span>
             </div>
           </div>
-          <div class="status" id="status-${s.key}">CLOSED</div>
+          <div class="status" id="status-${w.key}">CLOSED</div>
         </div>
 
         <div class="mid">
-          <div class="clock" id="clock-${s.key}">--:--:--</div>
+          <div class="clock" id="clock-${w.key}">--:--:--</div>
           <div class="cd">
-            <div id="label-${s.key}">Next: --</div>
-            <div class="big" id="cd-${s.key}">--</div>
-          </div>
-        </div>
-
-        <div class="windows">
-          <div class="line">
-            <div>Your time (ET)</div>
-            <span class="pill" id="your-${s.key}">--</span>
-          </div>
-          <div class="line">
-            <div>${s.city} local</div>
-            <span class="pill" id="local-${s.key}">${s.start}–${s.end}</span>
+            <div id="label-${w.key}">Next: --</div>
+            <div class="big" id="cd-${w.key}">--</div>
           </div>
         </div>
       `;
@@ -373,33 +362,30 @@
   }
 
   function tick(){
-    // Live ET clock in header
+    // Header live time
     document.getElementById("etNow").textContent = `ET ${hhmmssInTZ(USER_TZ)}`;
 
     let global = null;
 
-    for(const s of SESSIONS){
-      // Live ET clock inside each card (keeps it simple & clear)
-      document.getElementById(`clock-${s.key}`).textContent = hhmmssInTZ(USER_TZ);
+    for(const w of WINDOWS){
+      // Live ET clock on each card
+      document.getElementById(`clock-${w.key}`).textContent = hhmmssInTZ(USER_TZ);
 
-      const ev = nextEvent(s);
-      const card = document.getElementById(`card-${s.key}`);
+      const ev = nextEvent(w);
+      const card = document.getElementById(`card-${w.key}`);
       card.classList.toggle("open", ev.openNow);
       card.classList.toggle("closed", !ev.openNow);
 
-      document.getElementById(`status-${s.key}`).textContent = ev.openNow ? "OPEN" : "CLOSED";
-      document.getElementById(`label-${s.key}`).textContent = `Next: ${ev.type.toUpperCase()}`;
-      document.getElementById(`cd-${s.key}`).textContent = formatDuration(ev.when - Date.now());
+      document.getElementById(`status-${w.key}`).textContent = ev.openNow ? "OPEN" : "CLOSED";
+      document.getElementById(`label-${w.key}`).textContent  = `Next: ${ev.type.toUpperCase()}`;
 
-      // Show the session window in YOUR time (ET) using the next open & close timestamps
-      if(ev.nextOpen && ev.nextClose){
-        const yourStart = hhmmInTZ(USER_TZ, new Date(ev.nextOpen));
-        const yourEnd   = hhmmInTZ(USER_TZ, new Date(ev.nextClose));
-        document.getElementById(`your-${s.key}`).textContent = `${yourStart}–${yourEnd}`;
-      }
-
-      if(!global || ev.when < global.when){
-        global = { when: ev.when, text: `${s.name} ${ev.type}` };
+      if(ev.when){
+        document.getElementById(`cd-${w.key}`).textContent = formatDuration(ev.when - Date.now());
+        if(!global || ev.when < global.when){
+          global = { when: ev.when, text: `${w.name} ${ev.type}` };
+        }
+      }else{
+        document.getElementById(`cd-${w.key}`).textContent = "--";
       }
     }
 

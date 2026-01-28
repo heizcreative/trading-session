@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Killzone Session Monitor</title>
+<title>Killzone Monitor</title>
 
 <style>
   :root{
-    --text: rgba(255,255,255,.92);
-    --muted: rgba(255,255,255,.60);
+    --notion-dark: #0f0f10;
+    --card: rgba(255,255,255,.06);
     --stroke: rgba(255,255,255,.10);
 
-    --open: #28E6A5;
-    --closed:#FF4D6D;
+    --text: rgba(255,255,255,.92);
+    --muted: rgba(255,255,255,.60);
 
-    /* Change this if you want more/less “glass” */
-    --card: rgba(0,0,0,.24);
+    --open: #28E6A5;
+    --closed: #FF4D6D;
 
     --radius: 16px;
     --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -24,11 +24,11 @@
 
   *{ box-sizing:border-box; }
 
-  /* Force TRUE transparency inside Notion iframe */
   html, body{
     margin:0;
     padding:0;
-    background: transparent !important;
+    height:100%;
+    background: var(--notion-dark) !important;
   }
 
   body{
@@ -43,10 +43,10 @@
   }
 
   .panel{
-    background: transparent !important;
-    border: 1px solid var(--stroke);
+    background: var(--notion-dark);
     border-radius: var(--radius);
     overflow:hidden;
+    border: 1px solid rgba(255,255,255,.08);
   }
 
   .header{
@@ -54,9 +54,8 @@
     justify-content:space-between;
     align-items:flex-start;
     gap:12px;
-    padding: 12px;
+    padding: 12px 12px 10px 12px;
     border-bottom: 1px solid rgba(255,255,255,.07);
-    background: transparent;
   }
 
   .title h1{
@@ -74,11 +73,11 @@
   .chip{
     font-family: var(--mono);
     font-size: 12px;
-    color: rgba(255,255,255,.82);
+    color: rgba(255,255,255,.85);
     padding: 7px 10px;
     border-radius: 999px;
     border:1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.22);
+    background: rgba(0,0,0,.28);
     white-space:nowrap;
   }
 
@@ -88,7 +87,6 @@
     gap: 10px;
     padding: 12px;
   }
-
   @media (max-width: 760px){
     .grid{ grid-template-columns: 1fr; }
   }
@@ -150,7 +148,7 @@
     padding: 6px 10px;
     border-radius: 999px;
     border:1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.22);
+    background: rgba(0,0,0,.25);
     white-space:nowrap;
   }
 
@@ -169,17 +167,21 @@
     line-height:1;
   }
 
-  .cd{
+  /* One stable line (no blinking). We only update once per minute. */
+  .timerline{
     text-align:right;
-    color: var(--muted);
     font-size: 11px;
+    color: var(--muted);
     line-height:1.35;
   }
-  .cd .big{
+  .timerline .big{
     margin-top: 2px;
     font-family: var(--mono);
     color: rgba(255,255,255,.88);
     font-size: 12px;
+    display:inline-block;
+    min-width: 110px; /* prevents layout shift */
+    text-align:right;
   }
 
   .open .dot{
@@ -205,7 +207,6 @@
     display:flex;
     justify-content:space-between;
     gap:10px;
-    background: transparent;
   }
 
   .pill{
@@ -213,8 +214,8 @@
     padding: 2px 8px;
     border-radius: 999px;
     border:1px solid rgba(255,255,255,.10);
-    background: rgba(0,0,0,.18);
-    color: rgba(255,255,255,.70);
+    background: rgba(0,0,0,.22);
+    color: rgba(255,255,255,.75);
     display:inline-block;
     white-space:nowrap;
   }
@@ -229,32 +230,25 @@
         <h1>Killzone Monitor</h1>
         <p>Asia Range · London Killzone · NY Killzone (ET)</p>
       </div>
-      <div class="chip" id="etNow">ET --:--:--</div>
+      <div class="chip" id="etNow">ET --:--</div>
     </div>
 
     <div class="grid" id="grid"></div>
 
     <div class="footer">
-      <div>Status is based on <span class="pill">your time (ET)</span></div>
+      <div>Status uses <span class="pill">ET</span></div>
       <div id="nextGlobal">Next: <span class="pill">--</span></div>
     </div>
   </div>
 </div>
 
 <script>
-  // Your timezone (Mississauga)
   const USER_TZ = "America/Toronto";
 
-  // Killzones you requested (ET):
-  // Asia Range: 8:00 PM – 12:00 AM
-  // London Killzone: 2:00 AM – 5:00 AM
-  // NY Killzone: 9:30 AM – 11:00 AM
-  //
-  // Note: "end" can cross midnight (Asia ends at 00:00)
   const WINDOWS = [
-    { key:"asia",   name:"Asia Range",       start:"20:00", end:"00:00" },
-    { key:"london", name:"London Killzone",  start:"02:00", end:"05:00" },
-    { key:"ny",     name:"NY Killzone",      start:"09:30", end:"11:00" }
+    { key:"asia",   name:"Asia Range",      start:"20:00", end:"00:00" },
+    { key:"london", name:"London Killzone", start:"02:00", end:"05:00" },
+    { key:"ny",     name:"NY Killzone",     start:"09:30", end:"11:00" }
   ];
 
   const grid = document.getElementById("grid");
@@ -263,13 +257,6 @@
   function parseHM(hm){
     const [h,m] = hm.split(":").map(Number);
     return h*60 + m;
-  }
-
-  function hhmmssInTZ(tz, d=new Date()){
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz, hour12:false,
-      hour:"2-digit", minute:"2-digit", second:"2-digit"
-    }).format(d);
   }
 
   function hhmmInTZ(tz, d=new Date()){
@@ -284,12 +271,17 @@
     return HH*60 + MM;
   }
 
-  function formatDuration(ms){
-    const total = Math.max(0, Math.floor(ms/1000));
-    const h = Math.floor(total/3600);
-    const m = Math.floor((total%3600)/60);
-    const s = total%60;
-    return h>0 ? `${h}h ${pad(m)}m ${pad(s)}s` : `${m}m ${pad(s)}s`;
+  function etClockShort(){
+    const t = hhmmInTZ(USER_TZ);
+    return `ET ${t}`;
+  }
+
+  function formatHMM(ms){
+    const totalMin = Math.max(0, Math.ceil(ms/60000));
+    const h = Math.floor(totalMin/60);
+    const m = totalMin%60;
+    if(h <= 0) return `${m}m`;
+    return `${h}h ${m}m`;
   }
 
   function isOpen(win){
@@ -297,15 +289,10 @@
     const startM = parseHM(win.start);
     const endM = parseHM(win.end);
 
-    // If end > start: same day window
     if(endM > startM) return (nowM >= startM && nowM < endM);
-
-    // Crosses midnight (e.g., 20:00 -> 00:00)
-    // Open if now >= start OR now < end
     return (nowM >= startM || nowM < endM);
   }
 
-  // Find next occurrence of a minute-of-day in USER_TZ as a real timestamp (DST-safe).
   function nextOccurrence(minuteOfDay){
     const now = new Date();
     for(let i=0; i<=48*60; i++){
@@ -323,12 +310,10 @@
     const nextClose = nextOccurrence(endM);
 
     const openNow = isOpen(win);
-
-    // If currently open, next event is close; otherwise open
     const when = openNow ? nextClose : nextOpen;
     const type = openNow ? "closes" : "opens";
 
-    return { openNow, when, type, nextOpen, nextClose };
+    return { openNow, when, type };
   }
 
   function build(){
@@ -350,10 +335,10 @@
         </div>
 
         <div class="mid">
-          <div class="clock" id="clock-${w.key}">--:--:--</div>
-          <div class="cd">
-            <div id="label-${w.key}">Next: --</div>
-            <div class="big" id="cd-${w.key}">--</div>
+          <div class="clock" id="clock-${w.key}">--:--</div>
+          <div class="timerline">
+            <div id="label-${w.key}">--</div>
+            <div class="big" id="timeleft-${w.key}">--</div>
           </div>
         </div>
       `;
@@ -361,43 +346,59 @@
     }
   }
 
-  function tick(){
-    // Header live time
-    document.getElementById("etNow").textContent = `ET ${hhmmssInTZ(USER_TZ)}`;
-
+  // Updates OPEN/CLOSED + time remaining (once per minute)
+  function updateSessions(){
     let global = null;
 
     for(const w of WINDOWS){
-      // Live ET clock on each card
-      document.getElementById(`clock-${w.key}`).textContent = hhmmssInTZ(USER_TZ);
-
       const ev = nextEvent(w);
       const card = document.getElementById(`card-${w.key}`);
       card.classList.toggle("open", ev.openNow);
       card.classList.toggle("closed", !ev.openNow);
 
       document.getElementById(`status-${w.key}`).textContent = ev.openNow ? "OPEN" : "CLOSED";
-      document.getElementById(`label-${w.key}`).textContent  = `Next: ${ev.type.toUpperCase()}`;
+
+      const labelEl = document.getElementById(`label-${w.key}`);
+      const leftEl  = document.getElementById(`timeleft-${w.key}`);
 
       if(ev.when){
-        document.getElementById(`cd-${w.key}`).textContent = formatDuration(ev.when - Date.now());
+        const ms = ev.when - Date.now();
+        labelEl.textContent = ev.openNow ? "Closes in" : "Opens in";
+        leftEl.textContent = formatHMM(ms);
+
         if(!global || ev.when < global.when){
           global = { when: ev.when, text: `${w.name} ${ev.type}` };
         }
       }else{
-        document.getElementById(`cd-${w.key}`).textContent = "--";
+        labelEl.textContent = "--";
+        leftEl.textContent = "--";
       }
     }
 
     if(global){
       document.getElementById("nextGlobal").innerHTML =
-        `Next: <span class="pill">${global.text}</span> <span class="pill">${formatDuration(global.when - Date.now())}</span>`;
+        `Next: <span class="pill">${global.text}</span> <span class="pill">${formatHMM(global.when - Date.now())}</span>`;
+    }
+  }
+
+  // Updates ONLY the display clocks (no countdown) - smooth & not distracting
+  function updateClocks(){
+    document.getElementById("etNow").textContent = etClockShort();
+    const t = hhmmInTZ(USER_TZ);
+    for(const w of WINDOWS){
+      document.getElementById(`clock-${w.key}`).textContent = t;
     }
   }
 
   build();
-  tick();
-  setInterval(tick, 1000);
+  updateClocks();
+  updateSessions();
+
+  // clocks refresh every 10 seconds (smooth, not flashy)
+  setInterval(updateClocks, 10000);
+
+  // session timers refresh once per minute (NO BLINK)
+  setInterval(updateSessions, 60000);
 </script>
 </body>
 </html>

@@ -1,5 +1,3 @@
-
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -9,7 +7,6 @@
 
 <style>
   :root{
-    /* Match your Notion dark background (from screenshot) */
     --bg: #191919;
 
     --text: rgba(255,255,255,.92);
@@ -26,7 +23,6 @@
 
   *{ box-sizing:border-box; }
 
-  /* Notion embed iframe can be white; paint over it */
   html, body{
     margin:0;
     padding:0;
@@ -87,8 +83,20 @@
     gap: 10px;
     padding: 12px;
   }
+
   @media (max-width: 760px){
-    .grid{ grid-template-columns: 1fr; }
+    /* MOBILE HEIGHT FIX: everything tighter so it fits without scrolling */
+    body{ padding: 6px; }
+    .header{ padding: 8px; }
+    .grid{ padding: 8px; gap: 8px; grid-template-columns: 1fr; }
+    .card{ padding: 10px; }
+    .title h1{ font-size: 13px; }
+    .chip{ padding: 6px 9px; min-width: 80px; font-size: 12px; }
+    .names b{ font-size: 12px; }
+    .names span{ font-size: 10px; }
+    .status{ padding: 5px 9px; }
+    .footer{ padding: 8px; gap: 8px; }
+    .pill{ padding: 3px 10px; }
   }
 
   .card{
@@ -115,31 +123,28 @@
   }
 
   .dot{
-    width:10px; height:10px;
+    width:10px;
+    height:10px;
     border-radius:50%;
     background: var(--closed);
     box-shadow: 0 0 0 4px rgba(255,77,109,.14);
-    flex:0 0 auto;
+    flex-shrink:0;
   }
 
   .names{
     display:flex;
     flex-direction:column;
     gap:2px;
-    min-width:0;
   }
+
   .names b{
     font-size: 13px;
     white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
   }
+
   .names span{
     font-size: 11px;
     color: var(--muted);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
   }
 
   .status{
@@ -156,11 +161,13 @@
     background: var(--open);
     box-shadow: 0 0 0 4px rgba(40,230,165,.14);
   }
+
   .open .status{
     color: rgba(40,230,165,.95);
     border-color: rgba(40,230,165,.22);
     background: rgba(40,230,165,.10);
   }
+
   .closed .status{
     color: rgba(255,77,109,.95);
     border-color: rgba(255,77,109,.22);
@@ -174,17 +181,21 @@
     font-size: 11px;
     display:flex;
     justify-content:space-between;
+    align-items:center;
     gap:10px;
+    flex-wrap: wrap;
   }
 
   .pill{
     font-family: var(--mono);
-    padding: 2px 8px;
+    padding: 3px 10px;
     border-radius: 999px;
     border:1px solid rgba(255,255,255,.10);
     background: rgba(0,0,0,.18);
     color: rgba(255,255,255,.75);
-    display:inline-block;
+    display:inline-flex;
+    align-items:center;
+    line-height:1;
     white-space:nowrap;
   }
 </style>
@@ -202,10 +213,9 @@
 
     <div class="grid" id="grid"></div>
 
-    <!-- No countdown and no "Next" text. Only a static footer label. -->
     <div class="footer">
       <div>All times ET (America/Toronto)</div>
-      <div class="pill">OPEN/CLOSED only</div>
+      <div class="pill">OPEN / CLOSED only</div>
     </div>
   </div>
 </div>
@@ -213,7 +223,6 @@
 <script>
   const TZ = "America/Toronto";
 
-  // Killzones (ET)
   const WINDOWS = [
     { key:"asia",   name:"Asia Range",      start:"20:00", end:"00:00" },
     { key:"london", name:"London Killzone", start:"02:00", end:"05:00" },
@@ -224,31 +233,26 @@
 
   function getPartsInTZ(tz, date=new Date()){
     const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz, hour12:false,
-      hour:"2-digit", minute:"2-digit", second:"2-digit"
+      timeZone: tz,
+      hour12:false,
+      hour:"2-digit",
+      minute:"2-digit"
     }).formatToParts(date);
 
     const get = (type) => parts.find(p => p.type === type)?.value ?? "00";
-    return {
-      hour: Number(get("hour")),
-      minute: Number(get("minute")),
-      second: Number(get("second")),
-      hh: get("hour"),
-      mm: get("minute")
-    };
+    return { hh:get("hour"), mm:get("minute") };
   }
 
-  function minsInTZ(tz, date=new Date()){
-    const p = getPartsInTZ(tz, date);
-    return p.hour * 60 + p.minute;
+  function minsInTZ(tz){
+    const p = getPartsInTZ(tz);
+    return Number(p.hh)*60 + Number(p.mm);
   }
 
   function parseHM(hm){
     const [h,m] = hm.split(":").map(Number);
-    return h*60 + m;
+    return h*60+m;
   }
 
-  // Display times "hours only" (minutes intentionally removed)
   function hourLabel(hm){
     const [H] = hm.split(":").map(Number);
     const suffix = H >= 12 ? "PM" : "AM";
@@ -257,21 +261,19 @@
   }
 
   function isOpen(win){
-    const nowM = minsInTZ(TZ);
-    const startM = parseHM(win.start);
-    const endM   = parseHM(win.end);
-
-    if(endM > startM) return nowM >= startM && nowM < endM;
-    return (nowM >= startM || nowM < endM); // crosses midnight
+    const now = minsInTZ(TZ);
+    const s = parseHM(win.start);
+    const e = parseHM(win.end);
+    return e > s ? (now >= s && now < e) : (now >= s || now < e);
   }
 
   function build(){
-    grid.innerHTML = "";
+    grid.innerHTML="";
     for(const w of WINDOWS){
-      const el = document.createElement("div");
-      el.className = "card closed";
-      el.id = `card-${w.key}`;
-      el.innerHTML = `
+      const el=document.createElement("div");
+      el.className="card closed";
+      el.id=`card-${w.key}`;
+      el.innerHTML=`
         <div class="top">
           <div class="left">
             <div class="dot"></div>
@@ -281,27 +283,24 @@
             </div>
           </div>
           <div class="status" id="status-${w.key}">CLOSED</div>
-        </div>
-      `;
+        </div>`;
       grid.appendChild(el);
     }
   }
 
   function updateClock(){
-    const p = getPartsInTZ(TZ);
-    document.getElementById("etNow").textContent = `ET ${p.hh}:${p.mm}`;
+    const p=getPartsInTZ(TZ);
+    document.getElementById("etNow").textContent=`ET ${p.hh}:${p.mm}`;
   }
 
-  // Backend logic controls OPEN/CLOSED (no countdown visible)
   function updateSessions(){
     for(const w of WINDOWS){
-      const openNow = isOpen(w);
-      const card = document.getElementById(`card-${w.key}`);
-      const status = document.getElementById(`status-${w.key}`);
-
-      card.classList.toggle("open", openNow);
-      card.classList.toggle("closed", !openNow);
-      status.textContent = openNow ? "OPEN" : "CLOSED";
+      const open=isOpen(w);
+      const card=document.getElementById(`card-${w.key}`);
+      const status=document.getElementById(`status-${w.key}`);
+      card.classList.toggle("open",open);
+      card.classList.toggle("closed",!open);
+      status.textContent=open?"OPEN":"CLOSED";
     }
   }
 
@@ -309,11 +308,8 @@
   updateClock();
   updateSessions();
 
-  // ET chip updates every second so it never lags a minute
-  setInterval(updateClock, 1000);
-
-  // Session updates quietly in the background
-  setInterval(updateSessions, 15000);
+  setInterval(updateClock,1000);
+  setInterval(updateSessions,15000);
 </script>
 </body>
 </html>

@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Killzone Monitor</title>
+<title>Sessions Monitor</title>
 
 <style>
   :root{
-    --notion-dark: #0f0f10;
-    --card: rgba(255,255,255,.06);
-    --stroke: rgba(255,255,255,.10);
+    /* Match your Notion dark background from the screenshot */
+    --bg: #191919;
 
     --text: rgba(255,255,255,.92);
-    --muted: rgba(255,255,255,.60);
+    --muted: rgba(255,255,255,.62);
+    --stroke: rgba(255,255,255,.10);
 
     --open: #28E6A5;
     --closed: #FF4D6D;
@@ -24,11 +24,12 @@
 
   *{ box-sizing:border-box; }
 
+  /* Notion embed iframe may be white — we paint over it */
   html, body{
     margin:0;
     padding:0;
     height:100%;
-    background: var(--notion-dark) !important;
+    background: var(--bg) !important;
   }
 
   body{
@@ -43,10 +44,10 @@
   }
 
   .panel{
-    background: var(--notion-dark);
+    background: var(--bg);
+    border: 1px solid rgba(255,255,255,.08);
     border-radius: var(--radius);
     overflow:hidden;
-    border: 1px solid rgba(255,255,255,.08);
   }
 
   .header{
@@ -54,7 +55,7 @@
     justify-content:space-between;
     align-items:flex-start;
     gap:12px;
-    padding: 12px 12px 10px 12px;
+    padding: 12px;
     border-bottom: 1px solid rgba(255,255,255,.07);
   }
 
@@ -73,12 +74,14 @@
   .chip{
     font-family: var(--mono);
     font-size: 12px;
-    color: rgba(255,255,255,.85);
+    color: rgba(255,255,255,.88);
     padding: 7px 10px;
     border-radius: 999px;
     border:1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.28);
+    background: rgba(0,0,0,.22);
     white-space:nowrap;
+    min-width: 86px; /* prevents “jump” */
+    text-align:center;
   }
 
   .grid{
@@ -95,7 +98,7 @@
     border: 1px solid rgba(255,255,255,.10);
     border-radius: 14px;
     padding: 12px;
-    background: var(--card);
+    background: rgba(255,255,255,.05);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
@@ -129,13 +132,13 @@
     min-width:0;
   }
   .names b{
-    font-size:13px;
+    font-size: 13px;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
   }
   .names span{
-    font-size:11px;
+    font-size: 11px;
     color: var(--muted);
     white-space:nowrap;
     overflow:hidden;
@@ -148,40 +151,8 @@
     padding: 6px 10px;
     border-radius: 999px;
     border:1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.25);
+    background: rgba(0,0,0,.18);
     white-space:nowrap;
-  }
-
-  .mid{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-end;
-    gap: 10px;
-    margin-top: 12px;
-  }
-
-  .clock{
-    font-family: var(--mono);
-    font-size: 26px;
-    letter-spacing:.4px;
-    line-height:1;
-  }
-
-  /* One stable line (no blinking). We only update once per minute. */
-  .timerline{
-    text-align:right;
-    font-size: 11px;
-    color: var(--muted);
-    line-height:1.35;
-  }
-  .timerline .big{
-    margin-top: 2px;
-    font-family: var(--mono);
-    color: rgba(255,255,255,.88);
-    font-size: 12px;
-    display:inline-block;
-    min-width: 110px; /* prevents layout shift */
-    text-align:right;
   }
 
   .open .dot{
@@ -214,7 +185,7 @@
     padding: 2px 8px;
     border-radius: 999px;
     border:1px solid rgba(255,255,255,.10);
-    background: rgba(0,0,0,.22);
+    background: rgba(0,0,0,.18);
     color: rgba(255,255,255,.75);
     display:inline-block;
     white-space:nowrap;
@@ -227,7 +198,7 @@
   <div class="panel">
     <div class="header">
       <div class="title">
-        <h1>Killzone Monitor</h1>
+        <h1>Live Trading Sessions</h1>
         <p>Asia Range · London Killzone · NY Killzone (ET)</p>
       </div>
       <div class="chip" id="etNow">ET --:--</div>
@@ -236,15 +207,16 @@
     <div class="grid" id="grid"></div>
 
     <div class="footer">
-      <div>Status uses <span class="pill">ET</span></div>
+      <div>All times ET (America/Toronto)</div>
       <div id="nextGlobal">Next: <span class="pill">--</span></div>
     </div>
   </div>
 </div>
 
 <script>
-  const USER_TZ = "America/Toronto";
+  const TZ = "America/Toronto";
 
+  // Killzones (ET)
   const WINDOWS = [
     { key:"asia",   name:"Asia Range",      start:"20:00", end:"00:00" },
     { key:"london", name:"London Killzone", start:"02:00", end:"05:00" },
@@ -252,52 +224,58 @@
   ];
 
   const grid = document.getElementById("grid");
-  const pad = n => String(n).padStart(2,"0");
+
+  // -------- time helpers (DST-safe using Intl + timeZone) --------
+  function getPartsInTZ(tz, date=new Date()){
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour12:false,
+      hour:"2-digit", minute:"2-digit", second:"2-digit"
+    }).formatToParts(date);
+
+    const get = (type) => parts.find(p => p.type === type)?.value ?? "00";
+    return {
+      hour: Number(get("hour")),
+      minute: Number(get("minute")),
+      second: Number(get("second")),
+      hh: get("hour"),
+      mm: get("minute"),
+      ss: get("second")
+    };
+  }
+
+  function minsInTZ(tz, date=new Date()){
+    const p = getPartsInTZ(tz, date);
+    return p.hour * 60 + p.minute;
+  }
 
   function parseHM(hm){
     const [h,m] = hm.split(":").map(Number);
     return h*60 + m;
   }
 
-  function hhmmInTZ(tz, d=new Date()){
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz, hour12:false, hour:"2-digit", minute:"2-digit"
-    }).format(d);
-  }
-
-  function minsInTZ(tz, d=new Date()){
-    const t = hhmmInTZ(tz, d);
-    const [HH,MM] = t.split(":").map(Number);
-    return HH*60 + MM;
-  }
-
-  function etClockShort(){
-    const t = hhmmInTZ(USER_TZ);
-    return `ET ${t}`;
-  }
-
-  function formatHMM(ms){
-    const totalMin = Math.max(0, Math.ceil(ms/60000));
-    const h = Math.floor(totalMin/60);
-    const m = totalMin%60;
-    if(h <= 0) return `${m}m`;
-    return `${h}h ${m}m`;
+  // Hours-only label (intentional: minutes removed)
+  function hourLabel(hm){
+    const [H] = hm.split(":").map(Number);
+    const suffix = H >= 12 ? "PM" : "AM";
+    const h12 = ((H + 11) % 12) + 1;
+    return `${h12} ${suffix}`;
   }
 
   function isOpen(win){
-    const nowM = minsInTZ(USER_TZ);
+    const nowM = minsInTZ(TZ);
     const startM = parseHM(win.start);
-    const endM = parseHM(win.end);
+    const endM   = parseHM(win.end);
 
-    if(endM > startM) return (nowM >= startM && nowM < endM);
-    return (nowM >= startM || nowM < endM);
+    if(endM > startM) return nowM >= startM && nowM < endM;
+    return (nowM >= startM || nowM < endM); // crosses midnight
   }
 
+  // Backend logic to choose “next event” without showing countdown
   function nextOccurrence(minuteOfDay){
     const now = new Date();
     for(let i=0; i<=48*60; i++){
       const probe = new Date(now.getTime() + i*60*1000);
-      if(minsInTZ(USER_TZ, probe) === minuteOfDay) return probe.getTime();
+      if(minsInTZ(TZ, probe) === minuteOfDay) return probe.getTime();
     }
     return null;
   }
@@ -305,17 +283,19 @@
   function nextEvent(win){
     const startM = parseHM(win.start);
     const endM   = parseHM(win.end);
+    const openNow = isOpen(win);
 
     const nextOpen  = nextOccurrence(startM);
     const nextClose = nextOccurrence(endM);
 
-    const openNow = isOpen(win);
-    const when = openNow ? nextClose : nextOpen;
-    const type = openNow ? "closes" : "opens";
-
-    return { openNow, when, type };
+    return {
+      openNow,
+      when: openNow ? nextClose : nextOpen,
+      type: openNow ? "closes" : "opens"
+    };
   }
 
+  // -------- UI build --------
   function build(){
     grid.innerHTML = "";
     for(const w of WINDOWS){
@@ -328,77 +308,55 @@
             <div class="dot"></div>
             <div class="names">
               <b>${w.name}</b>
-              <span>${w.start}–${w.end} (ET)</span>
+              <span>${hourLabel(w.start)}–${hourLabel(w.end)}</span>
             </div>
           </div>
           <div class="status" id="status-${w.key}">CLOSED</div>
-        </div>
-
-        <div class="mid">
-          <div class="clock" id="clock-${w.key}">--:--</div>
-          <div class="timerline">
-            <div id="label-${w.key}">--</div>
-            <div class="big" id="timeleft-${w.key}">--</div>
-          </div>
         </div>
       `;
       grid.appendChild(el);
     }
   }
 
-  // Updates OPEN/CLOSED + time remaining (once per minute)
+  // Live clock every second (HH:MM) so it never “lags”
+  function updateClock(){
+    const p = getPartsInTZ(TZ);
+    document.getElementById("etNow").textContent = `ET ${p.hh}:${p.mm}`;
+  }
+
+  // Session state updates (backend logic)
   function updateSessions(){
     let global = null;
 
     for(const w of WINDOWS){
       const ev = nextEvent(w);
       const card = document.getElementById(`card-${w.key}`);
+      const status = document.getElementById(`status-${w.key}`);
+
       card.classList.toggle("open", ev.openNow);
       card.classList.toggle("closed", !ev.openNow);
+      status.textContent = ev.openNow ? "OPEN" : "CLOSED";
 
-      document.getElementById(`status-${w.key}`).textContent = ev.openNow ? "OPEN" : "CLOSED";
-
-      const labelEl = document.getElementById(`label-${w.key}`);
-      const leftEl  = document.getElementById(`timeleft-${w.key}`);
-
-      if(ev.when){
-        const ms = ev.when - Date.now();
-        labelEl.textContent = ev.openNow ? "Closes in" : "Opens in";
-        leftEl.textContent = formatHMM(ms);
-
-        if(!global || ev.when < global.when){
-          global = { when: ev.when, text: `${w.name} ${ev.type}` };
-        }
-      }else{
-        labelEl.textContent = "--";
-        leftEl.textContent = "--";
+      if(ev.when && (!global || ev.when < global.when)){
+        global = { when: ev.when, text: `${w.name} ${ev.type}` };
       }
     }
 
     if(global){
       document.getElementById("nextGlobal").innerHTML =
-        `Next: <span class="pill">${global.text}</span> <span class="pill">${formatHMM(global.when - Date.now())}</span>`;
-    }
-  }
-
-  // Updates ONLY the display clocks (no countdown) - smooth & not distracting
-  function updateClocks(){
-    document.getElementById("etNow").textContent = etClockShort();
-    const t = hhmmInTZ(USER_TZ);
-    for(const w of WINDOWS){
-      document.getElementById(`clock-${w.key}`).textContent = t;
+        `Next: <span class="pill">${global.text}</span>`;
     }
   }
 
   build();
-  updateClocks();
+  updateClock();
   updateSessions();
 
-  // clocks refresh every 10 seconds (smooth, not flashy)
-  setInterval(updateClocks, 10000);
+  // Clock: every 1s (no minute lag)
+  setInterval(updateClock, 1000);
 
-  // session timers refresh once per minute (NO BLINK)
-  setInterval(updateSessions, 60000);
+  // Session checks: every 15s (quiet backend)
+  setInterval(updateSessions, 15000);
 </script>
 </body>
 </html>

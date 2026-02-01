@@ -260,6 +260,29 @@
     return e > s ? (now >= s && now < e) : (now >= s || now < e);
   }
 
+  /* ✅ ONLY CHANGE: Market closed logic (Fri 5pm → Sun 6pm ET) */
+  function isMarketClosedET(date = new Date()){
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: TZ,
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).formatToParts(date);
+
+    const get = t => parts.find(p => p.type === t)?.value;
+    const day = get("weekday"); // Fri, Sat, Sun
+    const hour = Number(get("hour"));
+    const minute = Number(get("minute"));
+    const mins = hour * 60 + minute;
+
+    if (day === "Fri" && mins >= 17 * 60) return true;    // Fri 5:00pm+
+    if (day === "Sat") return true;                       // All Saturday
+    if (day === "Sun" && mins < 18 * 60) return true;     // Sun before 6:00pm
+
+    return false;
+  }
+
   function build(){
     grid.innerHTML="";
     for(const w of WINDOWS){
@@ -287,8 +310,10 @@
   }
 
   function updateSessions(){
+    const weekend = isMarketClosedET(); /* ✅ ONLY CHANGE: force CLOSED when market is closed */
+
     for(const w of WINDOWS){
-      const open=isOpen(w);
+      const open = weekend ? false : isOpen(w);
       const card=document.getElementById(`card-${w.key}`);
       const status=document.getElementById(`status-${w.key}`);
       card.classList.toggle("open",open);
